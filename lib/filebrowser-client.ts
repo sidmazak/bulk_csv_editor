@@ -40,7 +40,11 @@ class FileBrowserClient {
     // Ensure source is never undefined or empty
     this.source = FILEBROWSER_SOURCE || 'default';
     
-    // Validate configuration
+    // Don't throw on instantiation - throw when methods are called instead
+    // This allows the module to load during build even if FILEBROWSER_URL is not set
+  }
+
+  private ensureConfigured() {
     if (!this.baseUrl) {
       throw new Error('FILEBROWSER_URL environment variable is not set');
     }
@@ -50,6 +54,7 @@ class FileBrowserClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    this.ensureConfigured(); // Check here instead of constructor
     const url = `${this.baseUrl}${endpoint}`;
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -77,6 +82,7 @@ class FileBrowserClient {
    * List files and directories at a given path
    */
   async listResources(path: string = '/'): Promise<FileBrowserResponse> {
+    this.ensureConfigured(); // Check here
     // Ensure path starts with / and normalize it
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     const sourceParam = encodeURIComponent(this.source);
@@ -90,6 +96,7 @@ class FileBrowserClient {
    * Download a file
    */
   async downloadFile(path: string): Promise<Blob> {
+    this.ensureConfigured(); // Check here
     const url = `${this.baseUrl}/api/raw?files=${this.source}::${encodeURIComponent(path)}`;
     const headers: HeadersInit = {};
 
@@ -114,6 +121,7 @@ class FileBrowserClient {
     destinationPath: string,
     override: boolean = false
   ): Promise<void> {
+    this.ensureConfigured(); // Check here
     const url = `${this.baseUrl}/api/resources?path=${encodeURIComponent(destinationPath)}&source=${this.source}${override ? '&override=true' : ''}`;
     const headers: Record<string, string> = {
       'Content-Type': file.type || 'text/plain',
@@ -141,6 +149,7 @@ class FileBrowserClient {
    * Get all CSV files in a directory recursively
    */
   async getAllCSVFiles(path: string = '/'): Promise<FileInfo[]> {
+    this.ensureConfigured(); // Check here
     const csvFiles: FileInfo[] = [];
     
     const list = await this.listResources(path);
@@ -168,5 +177,26 @@ class FileBrowserClient {
   }
 }
 
-export const filebrowserClient = new FileBrowserClient();
+// Make it lazy - only instantiate when accessed
+let _filebrowserClient: FileBrowserClient | null = null;
+
+function getFilebrowserClient(): FileBrowserClient {
+  if (!_filebrowserClient) {
+    _filebrowserClient = new FileBrowserClient();
+  }
+  return _filebrowserClient;
+}
+
+// Keep the export for backwards compatibility, but make it lazy using a Proxy
+export const filebrowserClient = new Proxy({} as FileBrowserClient, {
+  get(_target, prop) {
+    const client = getFilebrowserClient();
+    const value = client[prop as keyof FileBrowserClient];
+    // If it's a function, bind it to the client instance
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  }
+});
 

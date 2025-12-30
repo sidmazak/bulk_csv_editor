@@ -9,8 +9,9 @@ export const env = {
 } as const;
 
 export function validateEnv() {
-  if (!env.FILEBROWSER_URL) {
-    throw new Error('FILEBROWSER_URL is required');
-  }
+  // FILEBROWSER_URL is now optional since filebrowser is deprecated
+  // if (!env.FILEBROWSER_URL) {
+  //   throw new Error('FILEBROWSER_URL is required');
+  // }
 }
 
