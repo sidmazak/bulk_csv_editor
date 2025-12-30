@@ -507,7 +507,7 @@ export async function POST(request: NextRequest) {
 
 async function processFilesWithAdvancedSearch(
   cfg: {
-    files: Array<{ path: string; name: string }>;
+    files: Array<{ path: string; name: string; url?: string }>;
     advanced: AdvancedSearchConfig;
     replaceTargetField?: string;
     replaceValue?: string;
